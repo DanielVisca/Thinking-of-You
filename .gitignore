@@ -1,0 +1,5 @@
+
+#Python
+*venv/
+/**/*secure.py
+__pycache__
