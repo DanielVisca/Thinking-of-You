@@ -11,21 +11,34 @@ import json
 import server.secure as secure
 import requests
 
+# Pushing to device
+from exponent_server_sdk import PushClient, PushMessage, PushResponseError, PushServerError, DeviceNotRegisteredError
+from requests.exceptions import ConnectionError, HTTPError
+
+
+
 # Security
 from django.contrib.auth.hashers import make_password, check_password
 from secrets import token_urlsafe
 
+# Timing
+from django.utils import timezone
+from datetime import datetime, timedelta, date
+import pytz
 
 # Create your views here.
 
 @api_view(['post'])
 @parser_classes([JSONParser])
 def send_toy(request):
-    requestJSONh = json.loads(request.header)
+    print(request)
+    requestJSON = json.loads(request.body)
+    auth_token = requestJSON['user_auth']
+    send_to_id = requestJSON["send_to_phone_number"]
 
-    requestJSONb = json.loads(request.body)
-    auth_token = requestJSONh['key']
-    send_to_id = requestJSONb["send_to_phone_number"]
+    # Time
+    tz = pytz.timezone('US/Eastern')
+    dt = datetime.now(tz)
     try:
         receiver = User.objects.get(phone_number=send_to_id)
         sender = User.objects.get(auth_token=auth_token)
@@ -34,6 +47,7 @@ def send_toy(request):
         TOY.objects.create(
             sender=sender,
             receiver=receiver,
+            time_sent=dt
         )
     except ObjectDoesNotExist:
         return JsonResponse(status=400, data={'success': False, 'msg': 'send failure'})
@@ -53,6 +67,7 @@ def init(request):
         print("request: "+ str(requestJSON))
         user_phone_number = requestJSON['phone_number']
         user_password = requestJSON['password']
+        expo_token = requestJSON['token']
 
         # Authentication, might throw an ObjectDoesNotExist error
         user = user_authenticate(user_phone_number,user_password)
@@ -66,6 +81,8 @@ def init(request):
         user.active = True
         user_auth_token = token_urlsafe(64)
         user.auth_token = user_auth_token
+        # save expo token
+        user.token = expo_token
         user.save()
 
         return JsonResponse(data={
@@ -88,6 +105,36 @@ def init(request):
     # Shouldn't get here, something's gone wrong
     return JsonResponse(status=500, data={'success': False})
 
+
+def send_push_message(token, extra=None):
+    """
+    Core function for sending messages, leveraged by other functions.
+    :param token: (str) ExpoToken of user message is being sent to
+    :param message: (str) Message to be sent to user
+    :param extra: (json) Any additional information to be added
+    :return:
+    """
+    message = "Somebody is thinking of you"
+    try:
+        response = PushClient().publish(
+            PushMessage(to=token,
+                        body=message,
+                        data=extra))
+    except PushServerError as exc: 
+        print("got push server error")
+        pass
+    except (ConnectionError, HTTPError) as exc:
+        print("got other error")
+        pass
+
+    try:
+
+        response.validate_response()
+    except DeviceNotRegisteredError: # Mark the push token as inactive
+        from notifications.models import PushToken
+        PushToken.objects.filter(token=token).update(active=False)
+    except PushResponseError as exc: # Encountered some other per-notification error.
+        pass
 
 # Helper Functions
 def user_authenticate(user_phone_number=None, password=None, first_name=None, last_name=None, phone_number=None, username=None):

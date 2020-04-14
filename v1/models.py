@@ -11,10 +11,11 @@ class User(models.Model):
     first_name = models.CharField(max_length=30, null=True)
     last_name = models.CharField(max_length=1024, null=True)
     auth_token = models.CharField(max_length=1024, default=None, null=True)
+    token = token = models.CharField(max_length=1024, null=True, blank=True)
     phone_number = models.CharField(max_length=30, default='0000000000', null=True)
     password = models.CharField(max_length=1024, default='testpwd1', null=True)
     active = models.BooleanField(default=False, null=True)
- 
+    
 
 class TOY(models.Model):
     """
