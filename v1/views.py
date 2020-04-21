@@ -82,6 +82,7 @@ def init(request):
         user_auth_token = token_urlsafe(64)
         user.auth_token = user_auth_token
         # save expo token
+        print("User token before: " + str(user.token))
         user.token = expo_token
         user.save()
 
@@ -91,9 +92,12 @@ def init(request):
         })
 
     except (json.JSONDecodeError):
+        print("failed in 1")
         # These errors imply invalid json, so we send 400
         return JsonResponse(status=400, data={'success': False})
     except (KeyError):
+        print("failed in 2")
+
         # These errors imply invalid json, so we send 400
         return JsonResponse(status=400, data={'success': False})
 
@@ -103,8 +107,37 @@ def init(request):
         return JsonResponse(status=401, data={'success': False})
 
     # Shouldn't get here, something's gone wrong
+    print("bad")
     return JsonResponse(status=500, data={'success': False})
 
+@api_view(['post'])
+@parser_classes([JSONParser])
+def logoff(request):
+    """
+    Wrapper function for logging off driver in the event that they completed a shift without needing
+    to be kicked out.
+    :param request: (HTTPRequest) contains parameters to be used by the function, specifically the
+    authorization token associated with the given driver
+    :return: (JsonResponse) object containing relevant information about each shelter
+    """
+    try:
+        requestJSON = json.loads(request.body)
+        auth_token = requestJSON['authToken']
+        user = User.objects.get(auth_token=auth_token)
+        # Nullify their auth token
+        user.auth_token = None
+        user.active = False
+        # Save to the database
+        user.save()
+        return JsonResponse({'success': True})
+
+    except (json.JSONDecodeError, KeyError):
+        # These errors imply invalid json, so we send 400
+        return JsonResponse(status=400, data={'success': 'false'})
+
+    except Exception as e:
+        print(e)
+        return JsonResponse(status=401, data={'success': 'false'})
 
 def send_push_message(token, extra=None):
     """
@@ -149,10 +182,13 @@ def user_authenticate(user_phone_number=None, password=None, first_name=None, la
             print("wrong password")
             return None
         else: return User
-    except: # User does not exist, creating new driver
+    except: # User does not exist, creating new user
         hashed_pwd = make_password(password)
+        print("Creating a new user")
         user = User.objects.create(phone_number=user_phone_number,password=hashed_pwd)
+        
         #user = User.objects.create(first_name=first_name,last_name=last_name,phone_number=user_phone_number,password=hashed_pwd)
         print("User: " + str(user))
         pwd_valid = check_password(password, hashed_pwd)
+        user.save()
         return user
