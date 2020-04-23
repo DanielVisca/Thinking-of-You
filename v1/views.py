@@ -31,11 +31,13 @@ import pytz
 @api_view(['post'])
 @parser_classes([JSONParser])
 def send_toy(request):
-    print(request)
     requestJSON = json.loads(request.body)
+    print(requestJSON)    
     auth_token = requestJSON['user_auth']
-    send_to_id = requestJSON["send_to_phone_number"]
-
+    send_to_id = requestJSON["phone_number"]
+    print("TOY recieved")
+    print("auth_token: " + auth_token )
+    print("send_to_id: " + send_to_id)
     # Time
     tz = pytz.timezone('US/Eastern')
     dt = datetime.now(tz)
@@ -49,6 +51,7 @@ def send_toy(request):
             receiver=receiver,
             time_sent=dt
         )
+        # send push notification
     except ObjectDoesNotExist:
         return JsonResponse(status=400, data={'success': False, 'msg': 'send failure'})
 
@@ -122,6 +125,7 @@ def logoff(request):
     """
     try:
         requestJSON = json.loads(request.body)
+        print(requestJSON)
         auth_token = requestJSON['authToken']
         user = User.objects.get(auth_token=auth_token)
         # Nullify their auth token
@@ -133,11 +137,11 @@ def logoff(request):
 
     except (json.JSONDecodeError, KeyError):
         # These errors imply invalid json, so we send 400
-        return JsonResponse(status=400, data={'success': 'false'})
+        return JsonResponse(status=400, data={'success': False})
 
     except Exception as e:
         print(e)
-        return JsonResponse(status=401, data={'success': 'false'})
+        return JsonResponse(status=401, data={'success': False})
 
 def send_push_message(token, extra=None):
     """
