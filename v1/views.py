@@ -46,17 +46,23 @@ def send_toy(request):
         sender = User.objects.get(auth_token=auth_token)
         
         # Create a 'Thinking of You' object
-        TOY.objects.create(
+        toy = TOY.objects.create(
             sender=sender,
             receiver=receiver,
             time_sent=dt
         )
+        toy.save()
+        print("toy")
+        print(toy)
         # send push notification
     except ObjectDoesNotExist:
+        # send via text
+        print("Object Does Not Exist")
         return JsonResponse(status=400, data={'success': False, 'msg': 'send failure'})
 
 
     return JsonResponse({'success': True})
+
 
 @api_view(['post'])
 @parser_classes([JSONParser])
@@ -143,6 +149,73 @@ def logoff(request):
         print(e)
         return JsonResponse(status=401, data={'success': False})
 
+
+
+@api_view(['post'])
+@parser_classes([JSONParser])
+def signup(request):
+    """
+    Create a new user given their phone number and a password
+    """
+    try:
+        requestJSON = json.loads(request.body)
+        print("request: "+ str(requestJSON))
+        user_phone_number = requestJSON['phone_number']
+        user_password = requestJSON['password']
+        expo_token = requestJSON['token']
+
+        hashed_pwd = make_password(user_password)
+        pwd_valid = check_password(user_password, hashed_pwd)
+        user_exists = user_authenticate(user_phone_number=user_phone_number)
+        if not user_exists and pwd_valid:
+    
+            print("Creating a new user")
+            user = User.objects.create(phone_number=user_phone_number,password=hashed_pwd)
+            # Set the user to active and generate an auth token for them
+            user.active = True
+            user_auth_token = token_urlsafe(64)
+            user.auth_token = user_auth_token
+            # save expo token
+            user.token = expo_token
+            user.save()
+            return JsonResponse({"success": True, "user_auth_token": user_auth_token})
+        else:
+            return JsonResponse({"success": False, "msg": "This is not a valid password"})
+        #user = User.objects.create(first_name=first_name,last_name=last_name,phone_number=user_phone_number,password=hashed_pwd)
+        print("User: " + str(user))
+    except Exception as e:
+        print(e)
+        return JsonResponse(status=401, data={'success': False})
+
+# Helper Functions
+def user_authenticate(user_phone_number=None, password=None, first_name=None, last_name=None, phone_number=None, username=None):
+    """
+    Authenticate a user
+    """
+    try:
+        user = User.objects.get(phone_number=user_phone_number)
+        pwd = User.password
+        pwd_valid = check_password(password, pwd)
+        if pwd_valid is False:
+            print("wrong password")
+            return None
+        else: return user
+    except: # User does not exist, creating new user
+
+
+        # hashed_pwd = make_password(password)
+        # print("Creating a new user")
+        # user = User.objects.create(phone_number=user_phone_number,password=hashed_pwd)
+        
+        # #user = User.objects.create(first_name=first_name,last_name=last_name,phone_number=user_phone_number,password=hashed_pwd)
+        # print("User: " + str(user))
+        # pwd_valid = check_password(password, hashed_pwd)
+        return None
+def user_exists(phone_number):
+    """
+    Checks if a user with this phone number already exists in the database
+    """
+
 def send_push_message(token, extra=None):
     """
     Core function for sending messages, leveraged by other functions.
@@ -172,27 +245,3 @@ def send_push_message(token, extra=None):
         PushToken.objects.filter(token=token).update(active=False)
     except PushResponseError as exc: # Encountered some other per-notification error.
         pass
-
-# Helper Functions
-def user_authenticate(user_phone_number=None, password=None, first_name=None, last_name=None, phone_number=None, username=None):
-    """
-    Authenticate a user
-    """
-    try:
-        user = User.objects.get(phone_number=user_phone_number)
-        pwd = User.password
-        pwd_valid = check_password(password, pwd)
-        if pwd_valid is False:
-            print("wrong password")
-            return None
-        else: return User
-    except: # User does not exist, creating new user
-        hashed_pwd = make_password(password)
-        print("Creating a new user")
-        user = User.objects.create(phone_number=user_phone_number,password=hashed_pwd)
-        
-        #user = User.objects.create(first_name=first_name,last_name=last_name,phone_number=user_phone_number,password=hashed_pwd)
-        print("User: " + str(user))
-        pwd_valid = check_password(password, hashed_pwd)
-        user.save()
-        return user
