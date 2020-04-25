@@ -19,6 +19,7 @@ from requests.exceptions import ConnectionError, HTTPError
 
 # Security
 from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth import authenticate
 from secrets import token_urlsafe
 
 # Timing
@@ -55,6 +56,8 @@ def send_toy(request):
         print("toy")
         print(toy)
         # send push notification
+        send_push_message(receiver.token,sender.phone_number)
+        return JsonResponse({'success': True})
     except ObjectDoesNotExist:
         # send via text
         print("Object Does Not Exist")
@@ -80,6 +83,8 @@ def init(request):
 
         # Authentication, might throw an ObjectDoesNotExist error
         user = user_authenticate(user_phone_number,user_password)
+        print("user in init")
+        print(user)
         if user is None:
             print("Authentication failed")
             user = User.objects.get(phone_number=user_phone_number, password=user_password)
@@ -166,6 +171,7 @@ def signup(request):
 
         hashed_pwd = make_password(user_password)
         pwd_valid = check_password(user_password, hashed_pwd)
+
         user_exists = user_authenticate(user_phone_number=user_phone_number)
         if not user_exists and pwd_valid:
     
@@ -193,30 +199,19 @@ def user_authenticate(user_phone_number=None, password=None, first_name=None, la
     Authenticate a user
     """
     try:
+
         user = User.objects.get(phone_number=user_phone_number)
-        pwd = User.password
+        pwd = user.password
         pwd_valid = check_password(password, pwd)
         if pwd_valid is False:
             print("wrong password")
             return None
-        else: return user
+        else:
+            return user
     except: # User does not exist, creating new user
-
-
-        # hashed_pwd = make_password(password)
-        # print("Creating a new user")
-        # user = User.objects.create(phone_number=user_phone_number,password=hashed_pwd)
-        
-        # #user = User.objects.create(first_name=first_name,last_name=last_name,phone_number=user_phone_number,password=hashed_pwd)
-        # print("User: " + str(user))
-        # pwd_valid = check_password(password, hashed_pwd)
         return None
-def user_exists(phone_number):
-    """
-    Checks if a user with this phone number already exists in the database
-    """
 
-def send_push_message(token, extra=None):
+def send_push_message(token, senders_phone_number):
     """
     Core function for sending messages, leveraged by other functions.
     :param token: (str) ExpoToken of user message is being sent to
@@ -226,10 +221,13 @@ def send_push_message(token, extra=None):
     """
     message = "Somebody is thinking of you"
     try:
+        
         response = PushClient().publish(
             PushMessage(to=token,
                         body=message,
-                        data=extra))
+                        data=senders_phone_number))
+        print("response")
+        print(response)
     except PushServerError as exc: 
         print("got push server error")
         pass
@@ -238,7 +236,6 @@ def send_push_message(token, extra=None):
         pass
 
     try:
-
         response.validate_response()
     except DeviceNotRegisteredError: # Mark the push token as inactive
         from notifications.models import PushToken
