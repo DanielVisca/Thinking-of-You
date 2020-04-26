@@ -27,7 +27,7 @@ SECRET_KEY = secure.SECRET_KEY
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1', '05a82fa8.ngrok.io',
+ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1', '1516a4d9.ngrok.io',
  'thinkingofyouserver.herokuapp.com']
 
 # Application definition

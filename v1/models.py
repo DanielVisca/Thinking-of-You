@@ -12,7 +12,7 @@ class User(models.Model):
     last_name = models.CharField(max_length=1024, null=True)
     auth_token = models.CharField(max_length=1024, default=None, null=True)
     token = token = models.CharField(max_length=1024, null=True, blank=True)
-    phone_number = models.CharField(primary_key=True, max_length=30, default='0000000000')
+    phone_number = models.CharField(unique=True, max_length=30, default='0000000000')
     password = models.CharField(max_length=1024, default='testpwd1', null=True)
     active = models.BooleanField(default=False, null=True)
     

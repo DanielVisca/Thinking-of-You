@@ -33,12 +33,9 @@ import pytz
 @parser_classes([JSONParser])
 def send_toy(request):
     requestJSON = json.loads(request.body)
-    print(requestJSON)    
     auth_token = requestJSON['user_auth']
     send_to_id = requestJSON["phone_number"]
-    print("TOY recieved")
-    print("auth_token: " + auth_token )
-    print("send_to_id: " + send_to_id)
+  
     # Time
     tz = pytz.timezone('US/Eastern')
     dt = datetime.now(tz)
@@ -56,7 +53,7 @@ def send_toy(request):
         print("toy")
         print(toy)
         # send push notification
-        send_push_message(receiver.token,sender.phone_number)
+        send_push_message(receiver.token,sender)
         return JsonResponse({'success': True})
     except ObjectDoesNotExist:
         # send via text
@@ -221,16 +218,16 @@ def send_push_message(token, senders_phone_number):
     """
     message = "Somebody is thinking of you"
     try:
-        
         response = PushClient().publish(
             PushMessage(to=token,
-                        body=message,
-                        data=senders_phone_number))
+                        body=message
+                        ))
         print("response")
         print(response)
     except PushServerError as exc: 
+        print(exc.response_data)
         print("got push server error")
-        pass
+        raise
     except (ConnectionError, HTTPError) as exc:
         print("got other error")
         pass
